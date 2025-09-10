@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/user/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/message/(.*)", 
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "backend/server.js"
+    }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "frontend/dist"
+}
