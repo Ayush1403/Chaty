@@ -64,24 +64,45 @@ export const messageState = create((set, get) => ({
     }
   },
 
+  // Store reference to the message handler
+  handleNewMessage: null,
+
   mess: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
+    
     const socket = authState.getState().socket;
+    if (!socket) return;
 
-    socket.on("new", (newMessage) => {
-      set((state) => ({
-        message: [...state.message, newMessage],
-      }));
-    });
+    // Remove existing listener first
+    get().submess();
+
+    // Create new message handler with filtering
+    const handleNewMessage = (newMessage) => {
+      const currentSelectedUser = get().selectedUser;
+      
+      // Only add message if it's for the current chat
+      if (currentSelectedUser && 
+          (newMessage.senderId === currentSelectedUser._id || 
+           newMessage.receiverId === currentSelectedUser._id)) {
+        set((state) => ({
+          message: [...state.message, newMessage],
+        }));
+      }
+    };
+
+    // Store handler reference and set up listener
+    set({ handleNewMessage });
+    socket.on("new", handleNewMessage);
   },
 
   submess: () => {
     const socket = authState.getState().socket;
     const { handleNewMessage } = get();
-    if (handleNewMessage) {
+    
+    if (socket && handleNewMessage) {
       socket.off("new", handleNewMessage);
-      set({ handleNewMessage: null });
     }
+    set({ handleNewMessage: null });
   },
 }));
