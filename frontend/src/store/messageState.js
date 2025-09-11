@@ -9,7 +9,7 @@ export const messageState = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-  handleNewMessage: null, // store socket listener reference
+  handleNewMessage: null, // stores the socket listener
 
   // Fetch all users
   getUsers: async () => {
@@ -25,8 +25,19 @@ export const messageState = create((set, get) => ({
     }
   },
 
-  // Set currently selected user
-  setSelectedUser: (user) => set({ selectedUser: user }),
+  // Set selected user and clear messages
+  setSelectedUser: (user) => {
+    // Unsubscribe old socket before switching
+    get().unsubscribeMessages();
+
+    set({ selectedUser: user, messages: [] });
+
+    // Fetch messages for the new user
+    get().messageWindowState();
+
+    // Subscribe to new socket events
+    get().subscribeMessages();
+  },
 
   // Fetch messages for selected user
   messageWindowState: async () => {
@@ -37,7 +48,7 @@ export const messageState = create((set, get) => ({
     set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/message/${userId}`);
-      // only update if selected user hasn't changed
+      // Only update messages if selected user hasn't changed
       if (get().selectedUser?._id === userId) {
         set({ messages: res.data });
       }
@@ -48,7 +59,7 @@ export const messageState = create((set, get) => ({
     }
   },
 
-  // Send a message to the selected user
+  // Send a message
   sendMessage: async (text) => {
     const selectedUser = get().selectedUser;
     if (!selectedUser) {
@@ -70,7 +81,7 @@ export const messageState = create((set, get) => ({
     }
   },
 
-  // Subscribe to socket messages for selected user
+  // Subscribe to socket messages for the selected user
   subscribeMessages: () => {
     const { selectedUser, handleNewMessage } = get();
     if (!selectedUser) return;
@@ -78,17 +89,20 @@ export const messageState = create((set, get) => ({
     const socket = authState.getState().socket;
     if (!socket) return;
 
-    // Remove existing listener if any
+    // Remove old listener if exists
     if (handleNewMessage) {
       socket.off("new", handleNewMessage);
     }
 
-    // Create new listener
+    // Create listener
     const listener = (newMessage) => {
+      const selectedUserId = get().selectedUser?._id;
+      if (!selectedUserId) return;
+
       // Only add message if it belongs to selected user
       if (
-        newMessage.senderId === selectedUser._id ||
-        newMessage.receiverId === selectedUser._id
+        newMessage.senderId === selectedUserId ||
+        newMessage.receiverId === selectedUserId
       ) {
         set((state) => ({
           messages: [...state.messages, newMessage],
