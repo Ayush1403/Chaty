@@ -1,26 +1,23 @@
 {
   "name": "proj1",
   "version": "1.0.0",
-  "main": "backend/server.js",
-  "scripts": {
-    "dev": "nodemon backend/server.js",
-    "start": "node backend/server.js",
-    "build": "cd frontend && npm install && npm run build"
-  },
-  "type": "module",
+  "description": "",
+  "main": "index.js",
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "cloudinary": "^2.7.0",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.19.0",
-    "mongoose": "^8.18.0",
-    "nodemon": "^3.1.10",
-    "react-router-dom": "^7.8.2",
-    "socket.io": "^4.8.1"
-  }
+  },
+  "devDependencies": {},
+  "scripts": {
+    "build":"npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start":"npm run start --prefix backend"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ayush1403/Chaty.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ayush1403/Chaty/issues"
+  },
+  "homepage": "https://github.com/Ayush1403/Chaty#readme"
 }

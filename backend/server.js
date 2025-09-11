@@ -1,74 +1,40 @@
 import express from 'express'
 import dotenv from 'dotenv'
-import { database } from './lib/db.js'
+import { database } from './lib/db.js';
 import userRoutes from './routes/user.route.js'
+import cookieParser from 'cookie-parser';
 import messageRoutes from './routes/message.route.js'
-import cookieParser from 'cookie-parser'
-import cors from 'cors'
-import { app, server, io } from './lib/socket.js'
+import cors from "cors"
+import {app, server , io} from './lib/socket.js'
 import path from 'path'
-import { fileURLToPath } from 'url'
 
-dotenv.config()
+dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+app.use(express.json({limit: '1000mb'}));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+const port = process.env.PORT
 
-// Validate essential env variables
-if (!process.env.FRONTEND_URL) {
-  throw new Error("FRONTEND_URL is not defined in .env")
+const __dirname = path.resolve();
+app.use(cors(
+   { 
+    origin:"http://localhost:5173",
+     methods: ['GET','POST','PUT','DELETE'],
+    credentials: true
 }
+))
 
-// Middleware
-app.use(express.json({ limit: '1000mb' }))
-app.use(express.urlencoded({ extended: true }))
-app.use(cookieParser())
+app.use('/user',userRoutes)
+app.use('/message',messageRoutes)
+if(process.env.NODE_ENV==="production"){
+    app.use(express.static(path.join(__dirname,"../frontend/dist")))
 
-// Dynamic CORS for dev vs prod
-const allowedOrigins = [
-  "http://localhost:5173", // local dev frontend
-  process.env.FRONTEND_URL // deployed frontend
-]
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
-  })
-)
-
-// Routes
-app.use('/user', userRoutes)
-app.use('/message', messageRoutes)
-
-// Serve frontend in production
-if (process.env.NODE_ENV === "production") {
-  const frontendPath = path.join(__dirname, "../frontend/dist")
-  app.use(express.static(frontendPath))
-
-  // ✅ Catch-all route using regex (compatible with Express v5)
-  app.get(/.*/, (req, res) => {
-    res.sendFile(path.resolve(frontendPath, "index.html"))
-  })
-}
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(500).json({ message: "Something went wrong!" })
-})
-
-const port = process.env.PORT || 5000
-
-// Connect to DB first, then start server
-database()
-  .then(() => {
-    server.listen(port, () => {
-      console.log(`✅ Server running on http://localhost:${port}`)
+    app.get("*",(req,res)=>{
+        res.sendFile(path.join((__dirname,"../frontend" , "dist" , "index.html")));
     })
-  })
-  .catch(err => {
-    console.error("❌ Database connection failed:", err)
-    process.exit(1)
-  })
+}
+
+server.listen(port,()=>{
+    database();
+    console.log(`Server is running on port http://localhost:${port}`)
+});

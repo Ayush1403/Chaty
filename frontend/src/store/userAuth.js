@@ -97,7 +97,7 @@ export const authState = create((set,get)=>({
 connectSocket: ()=>{
     const  {useAuth} = get()
     if(!useAuth || get().socket?.connected) return;
-    const socket = io("http://localhost:5002",{
+    const socket = io(import.meta.env.MODE==="development" ? "http://localhost:5002" : "/",{
         withCredentials: true,
         auth:{userId: useAuth._id}
     })
