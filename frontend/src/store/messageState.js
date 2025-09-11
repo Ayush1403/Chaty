@@ -23,7 +23,11 @@ export const messageState = create((set, get) => ({
     }
   },
 
-  setSelectedUser: (user) => set({ selectedUser: user }),
+  setSelectedUser: (user) => {
+    // Clean up previous chat when selecting new user
+    get().submess();
+    set({ selectedUser: user, message: [] }); // Clear previous messages
+  },
 
   messageWindowState: async () => {
     const selectedUser = get().selectedUser;
@@ -47,25 +51,28 @@ export const messageState = create((set, get) => ({
       return;
     }
 
-    set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.post(
         `/message/send/${selectedUser._id}`,
         { text }
       );
-      set((state) => ({
-        message: [...state.message, res.data],
-      }));
+      
+      // Only add message if we're still in the same chat
+      const currentSelectedUser = get().selectedUser;
+      if (currentSelectedUser && currentSelectedUser._id === selectedUser._id) {
+        set((state) => ({
+          message: [...state.message, res.data],
+        }));
+      }
+      
       toast.success("Message sent");
     } catch (error) {
       toast.error(error?.response?.data?.message || "Failed to send message");
-    } finally {
-      set({ isMessagesLoading: false });
     }
   },
 
-  // Store reference to the message handler
-  handleNewMessage: null,
+  // Store reference to the current message handler
+  currentMessageHandler: null,
 
   mess: () => {
     const { selectedUser } = get();
@@ -74,35 +81,61 @@ export const messageState = create((set, get) => ({
     const socket = authState.getState().socket;
     if (!socket) return;
 
-    // Remove existing listener first
+    // Always clean up first
     get().submess();
 
-    // Create new message handler with filtering
-    const handleNewMessage = (newMessage) => {
+    // Get current user ID for comparison
+    const currentUserId = authState.getState().useAuth?._id;
+    if (!currentUserId) return;
+
+    // Create message handler with proper filtering
+    const messageHandler = (newMessage) => {
       const currentSelectedUser = get().selectedUser;
       
-      // Only add message if it's for the current chat
-      if (currentSelectedUser && 
-          (newMessage.senderId === currentSelectedUser._id || 
-           newMessage.receiverId === currentSelectedUser._id)) {
-        set((state) => ({
-          message: [...state.message, newMessage],
-        }));
+      // Double check we still have a selected user
+      if (!currentSelectedUser) return;
+      
+      // Only process messages that belong to this specific chat
+      const isRelevantMessage = 
+        // Message sent TO the selected user FROM current user
+        (newMessage.senderId === currentUserId && newMessage.receiverId === currentSelectedUser._id) ||
+        // Message sent FROM the selected user TO current user  
+        (newMessage.senderId === currentSelectedUser._id && newMessage.receiverId === currentUserId);
+      
+      if (isRelevantMessage) {
+        // Additional safety check - make sure we're still in the same chat
+        const stillSelectedUser = get().selectedUser;
+        if (stillSelectedUser && stillSelectedUser._id === currentSelectedUser._id) {
+          set((state) => ({
+            message: [...state.message, newMessage],
+          }));
+        }
       }
     };
 
-    // Store handler reference and set up listener
-    set({ handleNewMessage });
-    socket.on("new", handleNewMessage);
+    // Store handler and attach listener
+    set({ currentMessageHandler: messageHandler });
+    socket.on("new", messageHandler);
   },
 
   submess: () => {
     const socket = authState.getState().socket;
-    const { handleNewMessage } = get();
+    const { currentMessageHandler } = get();
     
-    if (socket && handleNewMessage) {
-      socket.off("new", handleNewMessage);
+    if (socket && currentMessageHandler) {
+      socket.off("new", currentMessageHandler);
+      console.log("Removed socket listener"); // Debug log
     }
-    set({ handleNewMessage: null });
+    set({ currentMessageHandler: null });
   },
+
+  // Add cleanup method for when component unmounts
+  cleanup: () => {
+    get().submess();
+    set({ 
+      selectedUser: null, 
+      message: [], 
+      currentMessageHandler: null 
+    });
+  }
 }));
