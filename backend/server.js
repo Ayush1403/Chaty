@@ -40,8 +40,8 @@ app.use('/message', messageRoutes);
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  // 🔧 FIXED: Use a more specific pattern instead of "*"
-  app.get("/(.*)", (req, res) => {
+  // 🔧 FIXED: Use middleware to catch all unmatched routes (avoids path-to-regexp issues)
+  app.use((req, res) => {
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
